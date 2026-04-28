@@ -523,7 +523,7 @@ const COLUMNS = [
   { key: 'cpf',             label: 'CPF',             visible: false, get: r => r.profile?.cpf || '' },
   { key: 'birth_date',      label: 'Nascimento',      visible: false, get: r => fmtDate(r.profile?.birth_date) },
   { key: 'created_at',      label: 'Cadastro',        visible: true,  get: r => fmtDate(r.profile?.created_at) },
-  { key: 'origin_type',     label: 'Origem',          visible: true,  get: r => r.origin_info?.type || '' },
+  { key: 'origin_type',     label: 'Origem',          visible: true,  get: r => ({paid:'Pago',organic:'Orgânico',affiliate:'Afiliado',influencer:'Influencer'}[r.origin_info?.type] || r.origin_info?.type || '') },
   { key: 'origin_id',       label: 'Canal',           visible: false, get: r => r.origin_info?.id || '—' },
   { key: 'affiliate_id',    label: 'Afiliado',        visible: false, get: r => r.origin_info?.affiliate_id || '—' },
   { key: 'utm_source',      label: 'UTM Source',      visible: false, get: r => r.origin_info?.utm?.utm_source || '—' },
@@ -793,9 +793,8 @@ function renderBody() {
       } else if (col.key === 'name') {
         cell = `<td class="name-cell">${raw}</td>`;
       } else if (col.key === 'origin_type') {
-        const t = raw;
-        const label = {paid:'Pago',organic:'Orgânico',affiliate:'Afiliado'}[t] || t;
-        cell = `<td><span class="badge-origin ${t}">${label}</span></td>`;
+        const cssClass = r.origin_info?.type || '';
+        cell = `<td><span class="badge-origin ${cssClass}">${raw}</span></td>`;
       } else if (MONEY_KEYS.includes(col.key)) {
         const isZero = Number(raw) === 0;
         cell = `<td class="money${isZero?' zero':''}">${fmtMoney(Number(raw))}</td>`;
