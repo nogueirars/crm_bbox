@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    { "source": "/api/users", "destination": "/api/users" },
+    { "source": "/(.*)", "destination": "/public/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/users",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
