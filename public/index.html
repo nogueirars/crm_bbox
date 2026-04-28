@@ -557,14 +557,16 @@ function debounce(fn, delay) {
   return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
 }
 
+let globalQ = '';
+let originF = '';
+let partnerF = '';
+
 function renderData() {
+  renderStats();
   renderBody();
   renderPagination();
   renderCount();
 }
-let globalQ = '';
-let originF = '';
-let partnerF = '';
 
 // ─── UTILS ───────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -606,13 +608,16 @@ async function fetchData() {
 
 // ─── STATS ───────────────────────────────────────────────────────────
 function renderStats() {
-  const total    = allData.length;
-  const organic  = allData.filter(r=>r.origin_info?.type==='organic').length;
-  const paid     = allData.filter(r=>r.origin_info?.type==='paid').length;
-  const affiliate= allData.filter(r=>r.origin_info?.type==='affiliate').length;
-  const withDep  = allData.filter(r=>r.financials?.total_deposited>0).length;
-  const withCB   = allData.filter(r=>(r.cashback_user_active||[]).length>0).length;
-  const totalDep = allData.reduce((s,r)=>s+(r.financials?.total_deposited||0),0);
+  const total = allData.length;
+  let organic=0, paid=0, affiliate=0, withDep=0, withCB=0, totalDep=0;
+  for (const r of allData) {
+    const t = r.origin_info?.type;
+    if (t === 'organic')   organic++;
+    else if (t === 'paid') paid++;
+    else if (t === 'affiliate') affiliate++;
+    if (r.financials?.total_deposited > 0) { withDep++; totalDep += r.financials.total_deposited; }
+    if ((r.cashback_user_active||[]).length > 0) withCB++;
+  }
 
   document.getElementById('statsBar').innerHTML = `
     <div class="stat-card green">
@@ -696,13 +701,19 @@ function applyFilters() {
   });
 
   // sort
+  const DATE_KEYS = ['created_at','last_login','birth_date'];
   filtered.sort((a, b) => {
     const col = COLUMNS.find(c=>c.key===sortKey);
     if (!col) return 0;
-    let va = col.get(a), vb = col.get(b);
-    if (typeof va === 'number') {
-      return sortDir==='asc' ? va-vb : vb-va;
+    if (DATE_KEYS.includes(sortKey)) {
+      const getRaw = r => sortKey==='created_at' ? r.profile?.created_at
+        : sortKey==='last_login' ? r.activity?.last_login_at
+        : r.profile?.birth_date;
+      const va = getRaw(a) || '', vb = getRaw(b) || '';
+      return sortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     }
+    let va = col.get(a), vb = col.get(b);
+    if (typeof va === 'number') return sortDir==='asc' ? va-vb : vb-va;
     va = norm(String(va)); vb = norm(String(vb));
     return sortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va);
   });
@@ -711,6 +722,8 @@ function applyFilters() {
 }
 
 // ─── RENDER TABLE HEAD ───────────────────────────────────────────────
+const debouncedFilter = debounce(() => { applyFilters(); renderData(); }, 300);
+
 function renderHead() {
   const visible = COLUMNS.filter(c=>c.visible);
   let html = '<tr>';
@@ -746,7 +759,6 @@ function renderHead() {
   });
 
   // col filter input
-  const debouncedFilter = debounce(() => { applyFilters(); renderData(); }, 300);
   document.querySelectorAll('.col-filter').forEach(inp => {
     inp.addEventListener('input', e => {
       colFilters[e.target.dataset.col] = e.target.value;
@@ -808,8 +820,9 @@ function renderPagination() {
   const start = (page-1)*pageSize+1;
   const end = Math.min(page*pageSize, total);
 
-  document.getElementById('pageInfo').innerHTML =
-    `Mostrando <strong>${start.toLocaleString('pt-BR')}–${end.toLocaleString('pt-BR')}</strong> de <strong>${total.toLocaleString('pt-BR')}</strong>`;
+  document.getElementById('pageInfo').innerHTML = total === 0
+    ? `<strong>0</strong> resultados`
+    : `Mostrando <strong>${start.toLocaleString('pt-BR')}–${end.toLocaleString('pt-BR')}</strong> de <strong>${total.toLocaleString('pt-BR')}</strong>`;
 
   // page buttons (show max 7)
   let pages = [];
@@ -849,6 +862,7 @@ function renderCount() {
 
 // ─── MAIN RENDER ─────────────────────────────────────────────────────
 function render() {
+  renderStats();
   renderHead();
   renderBody();
   renderPagination();
@@ -911,6 +925,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   document.getElementById('partnerFilter').value = '';
   applyFilters();
   render();
+  renderStats();
 });
 
 // ─── PAGE SIZE ───────────────────────────────────────────────────────
