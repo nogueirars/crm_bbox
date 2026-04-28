@@ -551,6 +551,17 @@ let sortDir = 'desc';
 let page = 1;
 let pageSize = 50;
 let colFilters = {};
+
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+}
+
+function renderData() {
+  renderBody();
+  renderPagination();
+  renderCount();
+}
 let globalQ = '';
 let originF = '';
 let partnerF = '';
@@ -735,11 +746,11 @@ function renderHead() {
   });
 
   // col filter input
+  const debouncedFilter = debounce(() => { applyFilters(); renderData(); }, 300);
   document.querySelectorAll('.col-filter').forEach(inp => {
     inp.addEventListener('input', e => {
       colFilters[e.target.dataset.col] = e.target.value;
-      applyFilters();
-      render();
+      debouncedFilter();
     });
   });
 }
@@ -871,24 +882,24 @@ document.addEventListener('click', () => document.getElementById('colPanel').cla
 document.getElementById('colPanel').addEventListener('click', e => e.stopPropagation());
 
 // ─── GLOBAL SEARCH ───────────────────────────────────────────────────
+const debouncedGlobal = debounce(() => { applyFilters(); renderData(); }, 300);
 document.getElementById('globalSearch').addEventListener('input', e => {
   globalQ = e.target.value;
-  applyFilters();
-  render();
+  debouncedGlobal();
 });
 
 // ─── ORIGIN FILTER ───────────────────────────────────────────────────
 document.getElementById('originFilter').addEventListener('change', e => {
   originF = e.target.value;
   applyFilters();
-  render();
+  renderData();
 });
 
 // ─── PARTNER FILTER ──────────────────────────────────────────────────
 document.getElementById('partnerFilter').addEventListener('change', e => {
   partnerF = e.target.value;
   applyFilters();
-  render();
+  renderData();
 });
 
 // ─── CLEAR ───────────────────────────────────────────────────────────
